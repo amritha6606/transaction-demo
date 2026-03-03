@@ -1,0 +1,15 @@
+spring:
+    datasource:
+        url: jdbc:postgresql://localhost:5432/transaction-demo
+        username: postgres
+        password: admin
+    jpa:
+        hibernate: 
+            ddl-auto: update
+        show-sql: true
+        properties: 
+            hibernate:
+                formal_sql: true
+                dialect: org.hibernate.dialect.PostgreSQLDialect
+    application:
+        name: transaction-demo
