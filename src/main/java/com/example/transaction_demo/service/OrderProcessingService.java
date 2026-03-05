@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.example.transaction_demo.entity.Order;
 import com.example.transaction_demo.entity.Product;
+import com.example.transaction_demo.handler.AuditLogHandler;
 import com.example.transaction_demo.handler.InventoryHandler;
 import com.example.transaction_demo.handler.OrderHandler;
 
@@ -18,8 +19,12 @@ public class OrderProcessingService {
     
     private InventoryHandler inventoryHandler;
     private OrderHandler orderHandler;
+    private AuditLogHandler auditLogHandler;
 
-    @Transactional(propagation = Propagation.REQUIRED, isolation = Isolation.READ_COMMITTED)
+
+    // REQUIRED - join the existing transaction or create new if txn not exists
+    // REQUIRED NEW - Always create new txn by suspending the current txn eg: if any failure always save audit logs
+    @Transactional(propagation = Propagation.REQUIRED)
     public Order placeOrder(Order order){
     
         //get Product Inventory
@@ -30,10 +35,18 @@ public class OrderProcessingService {
         //update total price in order entity
         order.setTotalPrice(product.getPrice()*order.getQuantity());
 
+        Order savedOrder = null;
+        try{
+
         //save order
-        Order savedOrder = orderHandler.saveOrder(order);
+        savedOrder = orderHandler.saveOrder(order);
 
         updateStockInventory(product, order);
+            auditLogHandler.auditLogDetails(savedOrder, "order placement succeeded");
+        }
+        catch(Exception e) {
+            auditLogHandler.auditLogDetails(savedOrder, "order placement failed");
+        }
 
         return savedOrder;
     }
@@ -47,10 +60,7 @@ public class OrderProcessingService {
 
     private void updateStockInventory(Product product, Order order){
 
-        //throws exception to test @Transactional
-        if(product.getPrice()>5000){
-            throw new RuntimeException("DB Crashed");
-        }
+      
 
         //update stock in inventory
         int availableQuantity = product.getStockQuantity() - order.getQuantity();
